@@ -26,8 +26,11 @@ def test_run_pipeline_happy(tmp_path, monkeypatch):
         def report(self, *a, **k):
             return RunReport(frictions=[], decay_score=0, ttfs_seconds=1.0, pr_url=None, summary="ok")
 
-    monkeypatch.setattr(rookie_main, "clone_repo",
-                        lambda url, dst: (dst / "README.md").write_text("x"))
+    def fake_clone(url, dst):
+        dst.mkdir(parents=True, exist_ok=True)
+        (dst / "README.md").write_text("x")
+
+    monkeypatch.setattr(rookie_main, "clone_repo", fake_clone)
     monkeypatch.setattr(rookie_main, "build_planner", lambda s: FakePlanner())
     monkeypatch.setattr(rookie_main, "build_diagnostician", lambda s: FakeDiag())
     monkeypatch.setattr(rookie_main, "build_reporter", lambda s, emit: FakeReporter())
