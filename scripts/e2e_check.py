@@ -9,12 +9,14 @@ import time
 import httpx
 
 APP_URL = os.environ["APP_URL"].rstrip("/")
+# 恒久的に腐敗させた専用ターゲット（demo リポジトリは PR マージで健全化されうるため使わない）
+TARGET_REPO = os.environ.get("TARGET_REPO", "https://github.com/1729kent/dayone-e2e-target")
 TIMEOUT_S = 12 * 60
 
 
 def main() -> None:
     for attempt in range(4):
-        r = httpx.post(f"{APP_URL}/runs", json={}, timeout=30)
+        r = httpx.post(f"{APP_URL}/runs", json={"repo_url": TARGET_REPO}, timeout=30)
         if r.status_code != 429:
             break
         print(f"cooldown active; waiting 120s (attempt {attempt + 1}/4)")
