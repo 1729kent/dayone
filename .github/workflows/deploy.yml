@@ -1,0 +1,39 @@
+name: deploy
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+  id-token: write
+env:
+  REGION: asia-northeast1
+  PROJECT_ID: dayone-hack-2026
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync
+      - run: uv run ruff check .
+      - run: uv run pytest -q
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
+          service_account: dayone-deployer@dayone-hack-2026.iam.gserviceaccount.com
+      - uses: google-github-actions/setup-gcloud@v2
+      - run: gcloud auth configure-docker $REGION-docker.pkg.dev -q
+      - name: build and deploy
+        run: |
+          AR="$REGION-docker.pkg.dev/$PROJECT_ID/dayone"
+          docker build -f Dockerfile.app -t "$AR/app:$GITHUB_SHA" .
+          docker push "$AR/app:$GITHUB_SHA"
+          docker build -f Dockerfile.rookie -t "$AR/rookie:$GITHUB_SHA" .
+          docker push "$AR/rookie:$GITHUB_SHA"
+          gcloud run deploy dayone-app --image "$AR/app:$GITHUB_SHA" --region "$REGION"
+          gcloud run jobs update dayone-rookie --image "$AR/rookie:$GITHUB_SHA" --region "$REGION"

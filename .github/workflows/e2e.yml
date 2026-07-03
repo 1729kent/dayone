@@ -1,0 +1,16 @@
+name: daily-e2e
+on:
+  schedule:
+    - cron: "0 21 * * *"   # 06:00 JST — エージェント品質の毎日回帰
+  workflow_dispatch: {}
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync
+      - name: run rookie against demo repo and assert rot detection
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+        run: uv run python scripts/e2e_check.py
