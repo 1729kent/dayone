@@ -68,7 +68,7 @@ Cloud Scheduler（毎朝 07:00 JST の定期入社）
 ## 4. コンポーネント設計
 
 ### 4.1 dayone-rookie（エージェント本体）
-ADK Python の SequentialAgent をルートに、以下のサブエージェント／ツールで構成する。
+決定的な制御フローのパイプライン（google-genai SDK 直実装）として構成する。LLM 呼び出しは各コンポーネント内に隔離し、テストではフェイクに差し替える。（変更 2026-07-03: 当初 ADK SequentialAgent 前提だったが、ADK 2.0 の破壊的変更リスクを避けデモの確実性を優先。ADK ラッパは時間が余った場合の Optional。ユーザー承認済み）
 
 - **Planner**: 対象リポジトリを clone し、README 等のセットアップ文書を Gemini で「実行可能ステッププラン」に変換。各ステップは `{id, intent, command, expects, source_doc_line}` の構造化 JSON。
 - **Executor**: ステップを順に実行するループ。シェル実行ツール（timeout 120s/step、環境変数スクラブ済み）で実行し、exit code と stdout/stderr を観察。成功判定は exit code + Gemini による出力解釈の二段構え。
