@@ -39,7 +39,7 @@ def create_app(store: Store | None = None, launcher=None, settings: Settings | N
         launcher.launch(run_id, repo_url)
         return run_id
 
-    @app.get("/healthz")
+    @app.get("/health")  # /healthz は Cloud Run GFE の予約パスで404になるため使わない
     def healthz():
         return {"ok": True}
 
