@@ -1,4 +1,6 @@
 raw-demo/
 frame_*.png
+check_*.png
 draft*.mp4
-cards/
+build/
+cards/*.png
