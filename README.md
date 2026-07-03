@@ -87,6 +87,16 @@ graph LR
 - **まわす**: push → テスト → イメージビルド → Cloud Run/Jobs 自動デプロイ（GitHub Actions + WIF）。さらに**毎朝のE2E回帰がエージェント自身の品質を継続検証**（腐敗を検知できなくなったらCIが赤くなる）— エージェントを「作って終わり」にしないための仕組み
 - **とどける**: 誰でも触れる公開URL。トリガーはクールダウン付きで公開デモとして安全に運用
 
+## 実在OSSでの実行例（デモ用リポジトリ以外でも動く）
+
+| リポジトリ | 結果 | TTFS | 判定 |
+|---|---|---|---|
+| [chalk/chalk](https://github.com/chalk/chalk)（週2億DL） | 腐敗スコア **0** | 84秒 | 健全なドキュメントを健全と判定（誤検知なし） |
+| [fastapi/fastapi](https://github.com/fastapi/fastapi) | 腐敗スコア **0** | 17秒 | 同上 |
+| [dayone-demo-py](https://github.com/1729kent/dayone-demo-py)（腐敗注入） | 腐敗スコア **15** | — | 前提記載漏れを検知し[修正PR](https://github.com/1729kent/dayone-demo-py/pull/1)を自動作成 |
+
+実OSSテストは実装の穴も3つ暴いた（`readme.md`小文字対応・重い依存インストールのタイムアウト・診断LLMの誤帰属）。いずれも修正済みで、この「実環境で殴られて直す」ループ自体がDayOneの開発プロセスだった。
+
 ## 動かし方
 
 ### デモを見る
