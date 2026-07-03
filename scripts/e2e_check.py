@@ -13,9 +13,12 @@ TIMEOUT_S = 12 * 60
 
 
 def main() -> None:
-    r = httpx.post(f"{APP_URL}/runs", json={}, timeout=30)
-    if r.status_code == 429:
-        sys.exit("cooldown active; retry later")
+    for attempt in range(4):
+        r = httpx.post(f"{APP_URL}/runs", json={}, timeout=30)
+        if r.status_code != 429:
+            break
+        print(f"cooldown active; waiting 120s (attempt {attempt + 1}/4)")
+        time.sleep(120)
     r.raise_for_status()
     run_id = r.json()["run_id"]
     print(f"run started: {run_id}")

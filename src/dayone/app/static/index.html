@@ -265,7 +265,7 @@ function addEvent(e){
   else if(e.type==="fix")html=`<div class="ev"><div class="t">${fmtT(e.ts)}</div><div class="ico">🔧</div>
     <div class="body"><span class="fixtag">動く手順を発見（${CAT[p.category]||p.category}）</span><br><code>${esc(p.working_command)}</code></div></div>`;
   else if(e.type==="pr")html=`<div class="ev"><div class="t">${fmtT(e.ts)}</div><div class="ico">🔀</div>
-    <div class="body"><a class="prlink" href="${esc(p.url)}" target="_blank" rel="noopener">修正PRを作成しました</a></div></div>`;
+    <div class="body"><a class="prlink" href="${esc(p.url)}" target="_blank" rel="noopener">${p.reused?"既存の修正PRを確認（重複作成を回避）":"修正PRを作成しました"}</a></div></div>`;
   else if(e.type==="error")html=`<div class="ev"><div class="t">${fmtT(e.ts)}</div><div class="ico">⚠️</div>
     <div class="body"><div class="err">${esc(p.message||p.where||"")}</div></div></div>`;
   else if(e.type==="report"){renderReport(p);html=`<div class="ev"><div class="t">${fmtT(e.ts)}</div><div class="ico">📝</div>
