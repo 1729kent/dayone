@@ -1,7 +1,8 @@
 # ProtoPedia 登録用文面（コピペ用）
 
-登録URL: https://protopedia.net/ → 作品登録
-すべて 7/10(金) 23:59 までに登録 → Google Form で最終応募。
+✅ **登録完了済み（2026-07-03）**: https://protopedia.net/prototype/8711
+✅ 動画: https://www.youtube.com/watch?v=jgMJn3lnd2s
+残り: Google Form での最終応募（7/10 23:59 まで、再提出可）。
 
 ---
 

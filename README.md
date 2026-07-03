@@ -5,7 +5,8 @@
 ドキュメントを「読む対象」から「毎日テストされる実行可能な成果物」に変える、Docs-as-Code の文字通りの実装です。
 
 - 🌐 **動作デモ**: https://dayone-app-d2fceukfiq-an.a.run.app
-- 🎬 デモ動画: （ProtoPedia参照）
+- 🎬 **デモ動画**: https://www.youtube.com/watch?v=jgMJn3lnd2s
+- 📖 **ProtoPedia**: https://protopedia.net/prototype/8711
 - 🏆 DevOps × AI Agent Hackathon 2026 提出作品
 
 ## 解決したい課題
