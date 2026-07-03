@@ -22,7 +22,7 @@ def scrub_env(base: dict[str, str]) -> dict[str, str]:
 
 
 class Sandbox:
-    def __init__(self, cwd: Path, timeout_s: int = 120):
+    def __init__(self, cwd: Path, timeout_s: int = 300):
         self.cwd = cwd
         self.timeout_s = timeout_s
 
@@ -35,5 +35,8 @@ class Sandbox:
                               duration_s=time.monotonic() - t0)
         except subprocess.TimeoutExpired as e:
             out = e.stdout if isinstance(e.stdout, str) else ""
-            return ExecResult(exit_code=124, stdout=(out or "")[-20000:], stderr="timed out",
+            limit = timeout_s or self.timeout_s
+            return ExecResult(exit_code=124, stdout=(out or "")[-20000:],
+                              stderr=f"timed out after {limit}s (ネットワーク断とは限らない。"
+                                     "大きな依存のインストール等で単に時間切れの可能性が高い)",
                               duration_s=time.monotonic() - t0, timed_out=True)
