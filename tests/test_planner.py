@@ -23,6 +23,11 @@ def test_find_doc_missing(tmp_path):
         find_setup_doc(tmp_path)
 
 
+def test_find_doc_case_insensitive(tmp_path):
+    d = repo(tmp_path, {"readme.md": "r"})
+    assert find_setup_doc(d).name == "readme.md"
+
+
 def test_plan_normalizes_ids(tmp_path):
     d = repo(tmp_path, {"README.md": "# setup\nnpm install\nnpm run setup"})
     fake_plan = StepPlan(doc_path="README.md", steps=[

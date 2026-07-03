@@ -3,14 +3,18 @@ from pathlib import Path
 from dayone.common.models import StepPlan
 from dayone.rookie.prompts import PLANNER_SYSTEM, PLANNER_USER
 
-DOC_CANDIDATES = ["README.md", "CONTRIBUTING.md", "docs/setup.md", "docs/SETUP.md", "SETUP.md"]
+DOC_CANDIDATES = ["readme.md", "contributing.md", "docs/setup.md", "setup.md"]
 
 
 def find_setup_doc(repo_dir: Path) -> Path:
+    """候補名に大文字小文字を無視してマッチ（実OSSは readme.md / Readme.md 等が普通にある）"""
     for c in DOC_CANDIDATES:
-        p = repo_dir / c
-        if p.is_file():
-            return p
+        parent = repo_dir / Path(c).parent
+        if not parent.is_dir():
+            continue
+        for p in sorted(parent.iterdir()):
+            if p.is_file() and p.name.lower() == Path(c).name:
+                return p
     raise FileNotFoundError(f"no setup doc in {repo_dir}")
 
 
