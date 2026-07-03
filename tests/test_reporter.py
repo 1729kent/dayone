@@ -77,6 +77,24 @@ def test_reporter_no_frictions_no_pr(tmp_path):
     assert rep.pr_url is None and not called and rep.decay_score == 0
 
 
+def test_reporter_reuses_existing_open_pr(tmp_path):
+    (tmp_path / "README.md").write_text("npm run setup")
+    plan = StepPlan(doc_path="README.md",
+                    steps=[Step(id=1, intent="setup", command="npm run setup", expects="done")])
+
+    class GHWithExisting:
+        def find_open_dayone_pr(self, repo_full):
+            return "https://github.com/x/y/pull/1"
+
+        def create_doc_pr(self, *a, **kw):
+            raise AssertionError("should not create a duplicate PR")
+
+    llm = FakeLLM(text_responses=["サマリ。"])
+    rep = Reporter(llm, GHWithExisting(), emit=lambda t, p: None).report(
+        "https://github.com/x/y", tmp_path, plan, make_fixed_outcomes(plan), 0.0, 60.0)
+    assert rep.pr_url == "https://github.com/x/y/pull/1"
+
+
 def test_reporter_pr_failure_does_not_crash(tmp_path):
     (tmp_path / "README.md").write_text("npm run setup")
     plan = StepPlan(doc_path="README.md",

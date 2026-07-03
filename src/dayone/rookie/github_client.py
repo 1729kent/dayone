@@ -15,6 +15,15 @@ class GitHubClient:
             }, timeout=30)
         self.http = http
 
+    def find_open_dayone_pr(self, repo_full: str) -> str | None:
+        """既にオープンな DayOne 製 PR があればその URL を返す（重複 PR の防止）"""
+        r = self.http.get(f"{API}/repos/{repo_full}/pulls", params={"state": "open", "per_page": 50})
+        r.raise_for_status()
+        for pr in r.json():
+            if (pr.get("head") or {}).get("ref", "").startswith("dayone/"):
+                return pr["html_url"]
+        return None
+
     def create_doc_pr(self, repo_full: str, base: str, file_path: str,
                       new_content: str, title: str, body: str, branch: str) -> str:
         r = self.http.get(f"{API}/repos/{repo_full}/git/ref/heads/{base}")

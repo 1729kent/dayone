@@ -45,6 +45,11 @@ class Reporter:
     def _try_doc_pr(self, repo_url: str, repo_dir: Path, plan: StepPlan,
                     fixable: list[StepOutcome], finished_at: float) -> str | None:
         try:
+            repo_full = repo_full_from_url(repo_url)
+            existing = getattr(self.github, "find_open_dayone_pr", lambda _: None)(repo_full)
+            if existing:
+                self.emit("pr", {"url": existing, "reused": True})
+                return existing
             doc_file = repo_dir / plan.doc_path
             original = doc_file.read_text(errors="replace")
             mapping = "\n".join(
@@ -64,7 +69,7 @@ class Reporter:
                            f"（{o.fix.explanation}）" for o in fixable]
             body_lines += ["", "🤖 このPRは AI 新人エージェント DayOne が自動生成しました。マージ判断は人間が行ってください。"]
             pr_url = self.github.create_doc_pr(
-                repo_full=repo_full_from_url(repo_url), base="main", file_path=plan.doc_path,
+                repo_full=repo_full, base="main", file_path=plan.doc_path,
                 new_content=new_content, title="docs: DayOneが検知したセットアップ手順の腐敗を修正",
                 body="\n".join(body_lines), branch=f"dayone/fix-{int(finished_at)}")
             self.emit("pr", {"url": pr_url})
