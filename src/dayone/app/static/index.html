@@ -1,5 +1,297 @@
 <!doctype html>
 <html lang="ja">
-<head><meta charset="utf-8"><title>DayOne ☀️</title></head>
-<body>DayOne dashboard（Task 12 で実装）</body>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DayOne ☀️ — 毎日が、入社初日。</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☀️</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@600;800&family=IBM+Plex+Sans+JP:wght@400;500;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0e18; --surface:#121828; --surface-2:#182136; --line:#232e4a;
+  --ink:#eef2fb; --ink-2:#9aa7c7; --ink-3:#5d6a8c;
+  --sun:#f5b942; --sun-deep:#c98500;           /* データマークは sun-deep（検証済） */
+  --ok:#199e70; --bad:#e66767; --info:#3987e5; /* 検証済ステータス（必ずラベル併記） */
+  --mono:"IBM Plex Mono",monospace; --serif:"Shippori Mincho",serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  background:var(--bg); color:var(--ink);
+  font-family:"IBM Plex Sans JP",sans-serif; font-size:14px; line-height:1.65;
+  min-height:100vh;
+}
+/* ---- 夜明けのグロー ---- */
+body::before{
+  content:""; position:fixed; inset:0; pointer-events:none; z-index:0;
+  background:
+    radial-gradient(ellipse 90% 42% at 50% -12%, rgba(245,185,66,.16), transparent 60%),
+    radial-gradient(ellipse 55% 30% at 78% -8%, rgba(230,103,103,.07), transparent 60%);
+}
+.wrap{position:relative; z-index:1; max-width:1240px; margin:0 auto; padding:28px 32px 64px}
+
+header{display:flex; align-items:flex-end; gap:28px; padding:10px 4px 26px; border-bottom:1px solid var(--line)}
+.logo{font-family:var(--serif); font-weight:800; font-size:34px; letter-spacing:.02em}
+.logo .sun{display:inline-block; animation:rise 1.2s cubic-bezier(.2,.8,.3,1) both}
+@keyframes rise{from{transform:translateY(14px); opacity:0}to{transform:none; opacity:1}}
+.tagline{font-family:var(--serif); font-weight:600; font-size:15px; color:var(--sun);
+  border-left:2px solid var(--sun-deep); padding-left:14px; margin-bottom:6px}
+.tagline small{display:block; color:var(--ink-2); font-family:"IBM Plex Sans JP"; font-size:11.5px; font-weight:400}
+.spacer{flex:1}
+#hireBtn{
+  font-family:"IBM Plex Sans JP"; font-weight:700; font-size:14px; cursor:pointer;
+  color:#1a1200; background:linear-gradient(160deg,var(--sun),#e89c1e);
+  border:0; border-radius:10px; padding:13px 22px;
+  box-shadow:0 0 0 1px rgba(245,185,66,.35), 0 8px 28px rgba(245,185,66,.18);
+  transition:transform .15s, box-shadow .15s;
+}
+#hireBtn:hover{transform:translateY(-2px); box-shadow:0 0 0 1px rgba(245,185,66,.5), 0 12px 34px rgba(245,185,66,.3)}
+#hireBtn:disabled{opacity:.55; cursor:wait; transform:none}
+
+main{display:grid; grid-template-columns:340px 1fr; gap:22px; margin-top:24px}
+@media(max-width:900px){main{grid-template-columns:1fr}}
+
+.panel{background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:18px 18px 16px;
+  animation:fadein .5s ease both}
+.panel:nth-child(2){animation-delay:.08s}
+@keyframes fadein{from{opacity:0; transform:translateY(8px)}to{opacity:1; transform:none}}
+h2{font-family:var(--serif); font-size:13.5px; font-weight:600; color:var(--ink-2);
+  letter-spacing:.14em; margin-bottom:12px}
+h2 .en{color:var(--ink-3); font-family:var(--mono); font-size:10px; letter-spacing:.08em; margin-left:8px}
+
+/* ---- 実行履歴 ---- */
+.run{display:flex; gap:10px; align-items:center; padding:10px 10px; border-radius:9px; cursor:pointer;
+  border:1px solid transparent}
+.run:hover{background:var(--surface-2)}
+.run.sel{background:var(--surface-2); border-color:var(--line)}
+.run .score{font-family:var(--mono); font-weight:600; width:44px; text-align:right; font-size:15px}
+.run .meta{flex:1; min-width:0}
+.run .repo{font-size:12.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.run .time{font-size:11px; color:var(--ink-3); font-family:var(--mono)}
+.chip{font-size:10.5px; padding:2px 8px; border-radius:99px; white-space:nowrap; font-weight:500}
+.chip.completed{color:var(--ok); background:rgba(25,158,112,.12)}
+.chip.failed{color:var(--bad); background:rgba(230,103,103,.12)}
+.chip.running,.chip.queued{color:var(--sun); background:rgba(245,185,66,.1)}
+.chip.running::before{content:"●"; margin-right:5px; animation:blink 1.1s infinite}
+@keyframes blink{50%{opacity:.25}}
+
+/* ---- チャート ---- */
+#chartBox{margin-top:18px; padding-top:14px; border-top:1px dashed var(--line)}
+#chart{width:100%; height:96px; display:block}
+.tip{position:fixed; z-index:9; pointer-events:none; background:var(--surface-2); border:1px solid var(--line);
+  border-radius:8px; padding:6px 10px; font-family:var(--mono); font-size:11px; display:none}
+
+/* ---- 詳細 ---- */
+.scorecard{display:flex; gap:26px; align-items:center; flex-wrap:wrap; padding:6px 4px 18px}
+.big{font-family:var(--mono); font-weight:600; font-size:52px; line-height:1; letter-spacing:-.03em}
+.big .u{font-size:15px; color:var(--ink-3); letter-spacing:0}
+.kpi .lbl{font-size:11px; color:var(--ink-2); letter-spacing:.1em}
+.kpi{min-width:120px}
+.prlink{display:inline-block; font-weight:700; font-size:13px; color:var(--sun); text-decoration:none;
+  border:1px solid rgba(245,185,66,.4); border-radius:9px; padding:8px 14px}
+.prlink:hover{background:rgba(245,185,66,.1)}
+#summary{font-family:var(--serif); font-size:14.5px; color:var(--ink); border-left:2px solid var(--sun-deep);
+  padding:2px 0 2px 14px; margin:0 4px 16px}
+
+/* ---- 業務日誌（トレース） ---- */
+#journal{border-top:1px solid var(--line); padding-top:14px; max-height:520px; overflow-y:auto}
+.ev{display:flex; gap:12px; padding:7px 4px; animation:fadein .35s both; align-items:baseline}
+.ev .ico{width:20px; text-align:center; flex:none}
+.ev .body{flex:1; min-width:0}
+.ev .t{font-family:var(--mono); font-size:10px; color:var(--ink-3); width:58px; flex:none}
+.ev code{font-family:var(--mono); font-size:12px; background:#0c1120; border:1px solid var(--line);
+  padding:2px 7px; border-radius:6px; word-break:break-all}
+.ev .lbl{font-size:12.5px; color:var(--ink-2)}
+.ev.phase{margin-top:8px}
+.ev.phase .body{font-family:var(--serif); font-weight:600; letter-spacing:.12em; color:var(--sun);
+  border-bottom:1px dashed var(--line); padding-bottom:5px; font-size:12.5px}
+.ev .err{color:var(--bad); font-family:var(--mono); font-size:11.5px; white-space:pre-wrap; word-break:break-all}
+.ev .fixtag{color:var(--ok); font-weight:700; font-size:12px}
+.steps{margin:4px 0 0 0; padding-left:0; list-style:none}
+.steps li{font-size:12px; color:var(--ink-2); padding:2px 0}
+.steps .n{font-family:var(--mono); color:var(--ink-3); margin-right:8px}
+.empty{color:var(--ink-3); text-align:center; padding:40px 0 30px; font-size:13px}
+.toast{position:fixed; left:50%; bottom:34px; transform:translateX(-50%); background:var(--surface-2);
+  border:1px solid var(--line); color:var(--ink); border-radius:10px; padding:11px 20px; font-size:13px;
+  box-shadow:0 10px 30px rgba(0,0,0,.5); display:none; z-index:10}
+.frictions{width:100%; border-collapse:collapse; margin:4px 0 14px; font-size:12.5px}
+.frictions th{font-size:10.5px; color:var(--ink-3); letter-spacing:.1em; text-align:left; padding:4px 10px 6px;
+  border-bottom:1px solid var(--line); font-weight:500}
+.frictions td{padding:7px 10px; border-bottom:1px solid rgba(35,46,74,.5); vertical-align:top}
+.sev{font-weight:700; font-size:11px}
+.sev.high{color:var(--bad)} .sev.medium{color:var(--sun-deep)} .sev.low{color:var(--info)}
+footer{margin-top:34px; color:var(--ink-3); font-size:11px; text-align:center; font-family:var(--mono)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="logo"><span class="sun">☀️</span> DayOne</div>
+    </div>
+    <div class="tagline">毎日が、入社初日。<small>AIルーキーが毎朝リポジトリに入社し、腐ったドキュメントを検知して直します</small></div>
+    <div class="spacer"></div>
+    <button id="hireBtn">🌅 今日のルーキーを入社させる</button>
+  </header>
+
+  <main>
+    <section class="panel">
+      <h2>入社記録<span class="en">ONBOARDING HISTORY</span></h2>
+      <div id="runs"><div class="empty">まだ入社記録がありません</div></div>
+      <div id="chartBox">
+        <h2>ドキュメント腐敗スコア推移<span class="en">DECAY TREND</span></h2>
+        <svg id="chart" viewBox="0 0 300 96" preserveAspectRatio="none"></svg>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>本日の業務日誌<span class="en">ROOKIE'S JOURNAL</span></h2>
+      <div class="scorecard">
+        <div class="kpi"><div class="lbl">腐敗スコア</div><div class="big" id="score">–<span class="u">/100</span></div></div>
+        <div class="kpi"><div class="lbl">セットアップ成功まで</div><div class="big" id="ttfs" style="font-size:30px">–</div></div>
+        <div class="kpi" id="prBox" style="display:none"><div class="lbl">成果物</div>
+          <a class="prlink" id="prLink" target="_blank" rel="noopener">🔀 修正PRを見る</a></div>
+        <div class="kpi"><div class="lbl">状態</div><div id="stChip" class="chip">–</div></div>
+      </div>
+      <p id="summary" style="display:none"></p>
+      <div id="frictionBox"></div>
+      <div id="journal"><div class="empty">左の記録を選ぶか、ルーキーを入社させてください</div></div>
+    </section>
+  </main>
+  <footer>DayOne — DevOps × AI Agent Hackathon 2026 · Cloud Run + Cloud Run Jobs + Gemini (Vertex AI)</footer>
+</div>
+<div class="toast" id="toast"></div>
+<div class="tip" id="tip"></div>
+
+<script>
+const $=q=>document.querySelector(q);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmtT=ts=>new Date(ts*1000).toLocaleTimeString("ja-JP",{hour12:false});
+const fmtD=ts=>new Date(ts*1000).toLocaleString("ja-JP",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"});
+const ST={completed:"完了",failed:"失敗",running:"勤務中",queued:"出社待ち"};
+const SEV={high:"高",medium:"中",low:"低"};
+const CAT={doc_outdated:"ドキュメント腐敗",missing_prereq:"前提の記載漏れ",code_bug:"コード起因"};
+let runs=[],sel=null,es=null,seen=-1;
+
+function toast(msg){const t=$("#toast");t.textContent=msg;t.style.display="block";
+  clearTimeout(t._h);t._h=setTimeout(()=>t.style.display="none",3600)}
+
+async function loadRuns(){
+  runs=await (await fetch("/api/runs")).json();
+  const box=$("#runs");
+  if(!runs.length){box.innerHTML='<div class="empty">まだ入社記録がありません</div>';return}
+  box.innerHTML=runs.map(r=>`
+    <div class="run ${r.id===sel?"sel":""}" onclick="pick('${r.id}')">
+      <div class="score" style="color:${r.decay_score>=50?"var(--bad)":r.decay_score>0?"var(--sun-deep)":"var(--ok)"}">
+        ${r.decay_score??"–"}</div>
+      <div class="meta">
+        <div class="repo">${esc(r.repo_url.split("/").slice(-1)[0])}</div>
+        <div class="time">${fmtD(r.started_at)}${r.trigger==="scheduled"?" ⏰":""}</div>
+      </div>
+      <div class="chip ${r.status}">${ST[r.status]||r.status}</div>
+    </div>`).join("");
+  drawChart(runs.filter(r=>r.decay_score!=null).slice().reverse());
+  if(!sel&&runs.length)pick(runs[0].id);
+}
+
+/* ---- 単一系列ライン: 腐敗スコア推移（検証済 #c98500） ---- */
+function drawChart(data){
+  const svg=$("#chart");if(data.length<2){svg.innerHTML="";return}
+  const W=300,H=96,P=10,ys=v=>H-P-(v/100)*(H-2*P),xs=i=>P+i*(W-2*P)/(data.length-1);
+  const pts=data.map((r,i)=>[xs(i),ys(r.decay_score)]);
+  const path=pts.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+","+p[1].toFixed(1)).join(" ");
+  const last=pts[pts.length-1],lastV=data[data.length-1].decay_score;
+  svg.innerHTML=`
+    <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#c98500" stop-opacity=".28"/>
+      <stop offset="1" stop-color="#c98500" stop-opacity="0"/></linearGradient></defs>
+    <line x1="${P}" y1="${ys(0)}" x2="${W-P}" y2="${ys(0)}" stroke="#232e4a" stroke-width="1"/>
+    <path d="${path} L${last[0]},${ys(0)} L${pts[0][0]},${ys(0)} Z" fill="url(#g)"/>
+    <path d="${path}" fill="none" stroke="#c98500" stroke-width="2" stroke-linejoin="round"/>
+    <circle cx="${last[0]}" cy="${last[1]}" r="3.5" fill="#c98500" stroke="#121828" stroke-width="2"/>
+    <text x="${Math.min(last[0],W-26)}" y="${Math.max(last[1]-7,10)}" fill="#eef2fb"
+      font-size="10" font-family="IBM Plex Mono" text-anchor="middle">${lastV}</text>
+    ${pts.map((p,i)=>`<rect x="${p[0]-8}" y="0" width="16" height="${H}" fill="transparent"
+      data-i="${i}" class="hot"/>`).join("")}`;
+  svg.querySelectorAll(".hot").forEach(r=>{
+    r.addEventListener("mousemove",e=>{const d=data[+r.dataset.i],t=$("#tip");
+      t.style.display="block";t.style.left=(e.clientX+12)+"px";t.style.top=(e.clientY-34)+"px";
+      t.textContent=`${fmtD(d.started_at)} · 腐敗 ${d.decay_score}/100`});
+    r.addEventListener("mouseleave",()=>$("#tip").style.display="none");
+  });
+}
+
+function pick(id){
+  sel=id;seen=-1;$("#journal").innerHTML="";closeStream();
+  loadRuns();renderRunHead();
+  fetch(`/api/runs/${id}/events`).then(r=>r.json()).then(evs=>{
+    evs.forEach(addEvent);
+    const run=runs.find(r=>r.id===id);
+    if(run&&(run.status==="running"||run.status==="queued"))openStream(id);
+  });
+}
+function renderRunHead(){
+  const r=runs.find(x=>x.id===sel);if(!r)return;
+  $("#score").innerHTML=(r.decay_score??"–")+'<span class="u">/100</span>';
+  $("#score").style.color=r.decay_score>=50?"var(--bad)":r.decay_score>0?"var(--sun-deep)":"var(--ok)";
+  $("#ttfs").textContent=r.ttfs_seconds?Math.round(r.ttfs_seconds)+"秒":"–";
+  $("#stChip").className="chip "+r.status;$("#stChip").textContent=ST[r.status]||r.status;
+  if(r.pr_url){$("#prBox").style.display="";$("#prLink").href=r.pr_url}else $("#prBox").style.display="none";
+  if(r.summary){$("#summary").style.display="";$("#summary").textContent=r.summary}
+  else $("#summary").style.display="none";
+}
+function openStream(id){
+  es=new EventSource(`/api/runs/${id}/stream`);
+  es.onmessage=e=>addEvent(JSON.parse(e.data));
+  es.addEventListener("done",e=>{closeStream();loadRuns().then(renderRunHead)});
+}
+function closeStream(){if(es){es.close();es=null}}
+
+const PHASE={clone:"出社 — リポジトリを受け取る",plan:"読解 — ドキュメントから作業計画を立てる",
+  exec:"実務 — 手順どおりに環境構築する",report:"日報 — 摩擦をまとめて報告する"};
+function addEvent(e){
+  if(e.seq<=seen)return;seen=e.seq;
+  const j=$("#journal");if(j.querySelector(".empty"))j.innerHTML="";
+  const p=e.payload||{};let html="";
+  if(e.type==="phase")html=`<div class="ev phase"><div class="t">${fmtT(e.ts)}</div><div class="body">◤ ${PHASE[p.name]||p.name}</div></div>`;
+  else if(e.type==="plan")html=`<div class="ev"><div class="t">${fmtT(e.ts)}</div><div class="ico">📋</div>
+    <div class="body"><span class="lbl">${esc(p.doc_path)} から ${p.steps?.length??0} ステップの計画を作成</span>
+    <ol class="steps">${(p.steps||[]).map(s=>`<li><span class="n">${String(s.id).padStart(2,"0")}</span>${esc(s.intent)} <code>${esc(s.command)}</code></li>`).join("")}</ol></div></div>`;
+  else if(e.type==="exec")html=`<div class="ev"><div class="t">${fmtT(e.ts)}</div><div class="ico">▶</div>
+    <div class="body"><span class="lbl">STEP ${p.step_id} ${esc(p.intent||"")}</span><br><code>${esc(p.command)}</code></div></div>`;
+  else if(e.type==="diagnose")html=`<div class="ev"><div class="t">${fmtT(e.ts)}</div><div class="ico">🔍</div>
+    <div class="body"><span class="lbl">うまくいかない…原因を調査中</span><div class="err">${esc((p.stderr||"").slice(-300))}</div></div></div>`;
+  else if(e.type==="fix")html=`<div class="ev"><div class="t">${fmtT(e.ts)}</div><div class="ico">🔧</div>
+    <div class="body"><span class="fixtag">動く手順を発見（${CAT[p.category]||p.category}）</span><br><code>${esc(p.working_command)}</code></div></div>`;
+  else if(e.type==="pr")html=`<div class="ev"><div class="t">${fmtT(e.ts)}</div><div class="ico">🔀</div>
+    <div class="body"><a class="prlink" href="${esc(p.url)}" target="_blank" rel="noopener">修正PRを作成しました</a></div></div>`;
+  else if(e.type==="error")html=`<div class="ev"><div class="t">${fmtT(e.ts)}</div><div class="ico">⚠️</div>
+    <div class="body"><div class="err">${esc(p.message||p.where||"")}</div></div></div>`;
+  else if(e.type==="report"){renderReport(p);html=`<div class="ev"><div class="t">${fmtT(e.ts)}</div><div class="ico">📝</div>
+    <div class="body"><span class="lbl">日報を提出しました</span></div></div>`}
+  if(html){j.insertAdjacentHTML("beforeend",html);j.scrollTop=j.scrollHeight}
+}
+function renderReport(rep){
+  if(!rep.frictions?.length){$("#frictionBox").innerHTML="";return}
+  $("#frictionBox").innerHTML=`<table class="frictions">
+    <tr><th>STEP</th><th>分類</th><th>深刻度</th><th>説明</th><th>自己修復</th></tr>
+    ${rep.frictions.map(f=>`<tr><td class="n">${f.step_id}</td><td>${CAT[f.category]||esc(f.category)}</td>
+      <td><span class="sev ${f.severity}">${SEV[f.severity]} ${f.severity==="high"?"▲":f.severity==="medium"?"◆":"●"}</span></td>
+      <td>${esc(f.explanation)}</td><td>${f.found_fix?"✅":"—"}</td></tr>`).join("")}</table>`;
+}
+
+$("#hireBtn").addEventListener("click",async()=>{
+  const b=$("#hireBtn");b.disabled=true;
+  try{
+    const r=await fetch("/runs",{method:"POST",headers:{"content-type":"application/json"},body:"{}"});
+    if(r.status===429){toast("☕ クールダウン中です（5分に1回まで）");return}
+    const {run_id}=await r.json();toast("🌅 ルーキーが出社しました");sel=run_id;
+    await loadRuns();pick(run_id);
+  }finally{b.disabled=false}
+});
+loadRuns();setInterval(()=>{const r=runs.find(x=>x.id===sel);
+  if(!es&&r&&(r.status==="running"||r.status==="queued"))pick(sel);else if(!es)loadRuns()},15000);
+</script>
+</body>
 </html>
