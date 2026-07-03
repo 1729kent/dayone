@@ -223,7 +223,7 @@ function drawChart(data){
 }
 
 function pick(id){
-  sel=id;seen=-1;$("#journal").innerHTML="";closeStream();
+  sel=id;seen=-1;$("#journal").innerHTML="";$("#frictionBox").innerHTML="";closeStream();
   loadRuns();renderRunHead();
   fetch(`/api/runs/${id}/events`).then(r=>r.json()).then(evs=>{
     evs.forEach(addEvent);
