@@ -57,6 +57,8 @@ class Reporter:
                 system=DOC_PATCH_SYSTEM)
             if not new_content.strip() or new_content.strip() == original.strip():
                 return None
+            if original.endswith("\n") and not new_content.endswith("\n"):
+                new_content += "\n"
             body_lines = ["DayOne が本日のオンボーディングで検知した摩擦:", ""]
             body_lines += [f"- Step {o.step.id}: `{o.step.command}` → `{o.fix.working_command}`"
                            f"（{o.fix.explanation}）" for o in fixable]
