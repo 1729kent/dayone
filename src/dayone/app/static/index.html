@@ -132,7 +132,12 @@ footer{margin-top:34px; color:var(--ink-3); font-size:11px; text-align:center; f
     </div>
     <div class="tagline">毎日が、入社初日。<small>AIルーキーが毎朝リポジトリに入社し、腐ったドキュメントを検知して直します</small></div>
     <div class="spacer"></div>
-    <button id="hireBtn">🌅 今日のルーキーを入社させる</button>
+    <div style="display:flex;gap:10px;align-items:center">
+      <input id="repoInput" placeholder="公開リポジトリURL（空欄ならデモ）"
+        style="background:var(--surface);border:1px solid var(--line);color:var(--ink);border-radius:9px;
+               padding:12px 14px;font-size:12.5px;width:250px;font-family:var(--mono)">
+      <button id="hireBtn">🌅 今日のルーキーを入社させる</button>
+    </div>
   </header>
 
   <main>
@@ -148,8 +153,8 @@ footer{margin-top:34px; color:var(--ink-3); font-size:11px; text-align:center; f
     <section class="panel">
       <h2>本日の業務日誌<span class="en">ROOKIE'S JOURNAL</span></h2>
       <div class="scorecard">
-        <div class="kpi"><div class="lbl">腐敗スコア</div><div class="big" id="score">–<span class="u">/100</span></div></div>
-        <div class="kpi"><div class="lbl">セットアップ成功まで</div><div class="big" id="ttfs" style="font-size:30px">–</div></div>
+        <div class="kpi" title="検知した摩擦の深刻度加重和（低5・中15・高30、上限100）。0=ドキュメントは今日も健全"><div class="lbl">腐敗スコア ⓘ</div><div class="big" id="score">–<span class="u">/100</span></div></div>
+        <div class="kpi" title="Time to First Success: ゼロから環境構築が成功するまでの実測秒数（診断・自己修復込み）"><div class="lbl">セットアップ成功まで ⓘ</div><div class="big" id="ttfs" style="font-size:30px">–</div></div>
         <div class="kpi" id="prBox" style="display:none"><div class="lbl">成果物</div>
           <a class="prlink" id="prLink" target="_blank" rel="noopener">🔀 修正PRを見る</a></div>
         <div class="kpi"><div class="lbl">状態</div><div id="stChip" class="chip">–</div></div>
@@ -159,11 +164,14 @@ footer{margin-top:34px; color:var(--ink-3); font-size:11px; text-align:center; f
       <div id="journal"><div class="empty">左の記録を選ぶか、ルーキーを入社させてください</div></div>
     </section>
   </main>
-  <footer>DayOne — DevOps × AI Agent Hackathon 2026 · Cloud Run + Cloud Run Jobs + Gemini (Vertex AI)</footer>
+  <footer>DayOne — DevOps × AI Agent Hackathon 2026 · Cloud Run + Cloud Run Jobs + Gemini (Vertex AI)
+    · <a href="/api/runs" style="color:var(--ink3)">生データ(JSON)</a>
+    · <a href="https://github.com/1729kent/dayone" style="color:var(--ink3)">GitHub</a></footer>
 </div>
 <div class="toast" id="toast"></div>
 <div class="tip" id="tip"></div>
 
+<script>/*__INITIAL_RUNS__*/</script>
 <script>
 const $=q=>document.querySelector(q);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -177,8 +185,7 @@ let runs=[],sel=null,es=null,seen=-1;
 function toast(msg){const t=$("#toast");t.textContent=msg;t.style.display="block";
   clearTimeout(t._h);t._h=setTimeout(()=>t.style.display="none",3600)}
 
-async function loadRuns(){
-  runs=await (await fetch("/api/runs")).json();
+function renderRuns(){
   const box=$("#runs");
   if(!runs.length){box.innerHTML='<div class="empty">まだ入社記録がありません</div>';return}
   box.innerHTML=runs.map(r=>`
@@ -186,13 +193,17 @@ async function loadRuns(){
       <div class="score" style="color:${r.decay_score>=50?"var(--bad)":r.decay_score>0?"var(--sun-deep)":"var(--ok)"}">
         ${r.decay_score??"–"}</div>
       <div class="meta">
-        <div class="repo">${esc(r.repo_url.split("/").slice(-1)[0])}</div>
+        <div class="repo">${esc(r.repo_url.split("/").slice(-1)[0])}${r.repo_url.endsWith("e2e-target")?' <span title="E2E回帰用にわざと直さない恒久腐敗ターゲット">🧪</span>':""}</div>
         <div class="time">${fmtD(r.started_at)}${r.trigger==="scheduled"?" ⏰":""}</div>
       </div>
       <div class="chip ${r.status}">${ST[r.status]||r.status}</div>
     </div>`).join("");
   drawChart(runs.filter(r=>r.decay_score!=null).slice().reverse());
   if(!sel&&runs.length)pick(runs[0].id);
+}
+async function loadRuns(){
+  runs=await (await fetch("/api/runs")).json();
+  renderRuns();
 }
 
 /* ---- 単一系列ライン: 腐敗スコア推移（検証済 #c98500） ---- */
@@ -284,12 +295,16 @@ function renderReport(rep){
 $("#hireBtn").addEventListener("click",async()=>{
   const b=$("#hireBtn");b.disabled=true;
   try{
-    const r=await fetch("/runs",{method:"POST",headers:{"content-type":"application/json"},body:"{}"});
+    const repo=$("#repoInput").value.trim();
+    const r=await fetch("/runs",{method:"POST",headers:{"content-type":"application/json"},
+      body:JSON.stringify(repo?{repo_url:repo}:{})});
     if(r.status===429){toast("☕ クールダウン中です（5分に1回まで）");return}
+    if(r.status===400){toast("⚠️ https://github.com/owner/repo 形式の公開リポジトリを指定してください");return}
     const {run_id}=await r.json();toast("🌅 ルーキーが出社しました");sel=run_id;
     await loadRuns();pick(run_id);
   }finally{b.disabled=false}
 });
+if(window.__INITIAL_RUNS__){runs=window.__INITIAL_RUNS__;renderRuns()}
 loadRuns();setInterval(()=>{const r=runs.find(x=>x.id===sel);
   if(!es&&r&&(r.status==="running"||r.status==="queued"))pick(sel);else if(!es)loadRuns()},15000);
 </script>

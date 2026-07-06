@@ -1,13 +1,14 @@
 import asyncio
 import json
 import os
+import re
 import time
 import uuid
 from pathlib import Path
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 
 from dayone.common.config import Settings
 from dayone.common.models import Run
@@ -17,6 +18,8 @@ DEFAULT_REPO = "https://github.com/1729kent/dayone-demo-node"
 DEMO_REPOS = [DEFAULT_REPO, "https://github.com/1729kent/dayone-demo-py"]
 COOLDOWN_SECONDS = 300
 STATIC_DIR = Path(__file__).parent / "static"
+REPO_URL_RE = re.compile(r"^https://github\.com/[\w.-]+/[\w.-]+/?$")
+STUCK_SECONDS = 1800  # queued/running のままこれを超えた run はウォッチドッグが failed に落とす
 
 
 def create_app(store: Store | None = None, launcher=None, settings: Settings | None = None) -> FastAPI:
@@ -43,13 +46,28 @@ def create_app(store: Store | None = None, launcher=None, settings: Settings | N
     def healthz():
         return {"ok": True}
 
+    def reconciled_runs() -> list[Run]:
+        """滞留した run をウォッチドッグで failed に落としてから返す"""
+        runs = store.list_runs()
+        now = time.time()
+        for i, r in enumerate(runs):
+            if r.status in ("queued", "running") and now - r.started_at > STUCK_SECONDS:
+                store.update_run(r.id, status="failed", finished_at=now,
+                                 summary="実行が滞留したためウォッチドッグが自動クローズしました。")
+                runs[i] = store.get_run(r.id) or r
+        return runs
+
     @app.get("/")
     def index():
-        return FileResponse(STATIC_DIR / "index.html")
+        # 初期データを埋め込み、審査員が開いた瞬間に実績が見える状態にする（CSR待ちの空画面を排除）
+        html = (STATIC_DIR / "index.html").read_text()
+        initial = json.dumps([r.model_dump() for r in reconciled_runs()], ensure_ascii=False)
+        html = html.replace("/*__INITIAL_RUNS__*/", f"window.__INITIAL_RUNS__ = {initial};")
+        return HTMLResponse(html)
 
     @app.get("/api/runs")
     def list_runs():
-        return [r.model_dump() for r in store.list_runs()]
+        return [r.model_dump() for r in reconciled_runs()]
 
     @app.get("/api/runs/{run_id}")
     def get_run(run_id: str):
@@ -69,9 +87,11 @@ def create_app(store: Store | None = None, launcher=None, settings: Settings | N
             body = await request.json()
         except Exception:
             pass
+        repo_url = ((body or {}).get("repo_url") or DEFAULT_REPO).strip()
+        if not REPO_URL_RE.match(repo_url):
+            raise HTTPException(400, detail="公開GitHubリポジトリのURL（https://github.com/owner/repo）を指定してください")
         if not store.try_acquire_cooldown(COOLDOWN_SECONDS, now=time.time()):
             raise HTTPException(429, detail="cooldown: 5分に1回まで実行できます")
-        repo_url = (body or {}).get("repo_url") or DEFAULT_REPO
         return {"run_id": start_run(repo_url, "manual")}
 
     @app.post("/internal/scheduled")

@@ -64,3 +64,30 @@ def test_index_serves_html():
     r = c.get("/")
     assert r.status_code == 200
     assert "text/html" in r.headers["content-type"]
+
+
+def test_index_embeds_initial_runs():
+    c, store, _ = mk()
+    rid = c.post("/runs", json={}).json()["run_id"]
+    html = c.get("/").text
+    assert "window.__INITIAL_RUNS__" in html and rid in html
+
+
+def test_trigger_rejects_bad_repo_url():
+    c, *_ = mk()
+    assert c.post("/runs", json={"repo_url": "https://evil.example.com/x"}).status_code == 400
+    assert c.post("/runs", json={"repo_url": "git@github.com:a/b.git"}).status_code == 400
+    assert c.post("/runs", json={"repo_url": "https://github.com/chalk/chalk"}).status_code == 200
+
+
+def test_watchdog_fails_stuck_runs():
+    import time as _time
+
+    from dayone.common.models import Run
+
+    c, store, _ = mk()
+    store.create_run(Run(id="stuck1", repo_url="u", trigger="manual", status="running",
+                         started_at=_time.time() - 3600))
+    runs = c.get("/api/runs").json()
+    stuck = next(r for r in runs if r["id"] == "stuck1")
+    assert stuck["status"] == "failed"
