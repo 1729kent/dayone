@@ -122,6 +122,18 @@ h2 .en{color:var(--ink-3); font-family:var(--mono); font-size:10px; letter-spaci
 .sev{font-weight:700; font-size:11px}
 .sev.high{color:var(--bad)} .sev.medium{color:var(--sun-deep)} .sev.low{color:var(--info)}
 footer{margin-top:34px; color:var(--ink-3); font-size:11px; text-align:center; font-family:var(--mono)}
+.trybar{display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:16px 4px 0;
+  padding:12px 16px; background:linear-gradient(90deg,rgba(245,185,66,.08),rgba(245,185,66,.02));
+  border:1px solid var(--line); border-radius:12px}
+.trylabel{font-family:var(--serif); font-weight:600; font-size:13px; color:var(--sun)}
+.trynote{font-size:11px; color:var(--ink-3); font-family:var(--mono)}
+.chip-btn{cursor:pointer; font-family:"IBM Plex Sans JP"; font-size:12.5px; font-weight:500;
+  border-radius:99px; padding:8px 15px; border:1px solid var(--line); background:var(--surface-2); color:var(--ink);
+  transition:transform .12s, box-shadow .12s}
+.chip-btn:hover{transform:translateY(-1px); box-shadow:0 4px 14px rgba(0,0,0,.35)}
+.chip-btn.detect{border-color:rgba(245,185,66,.5); color:var(--sun)}
+.chip-btn.ok{border-color:rgba(25,158,112,.4); color:var(--ok)}
+.chip-btn:disabled{opacity:.5; cursor:wait}
 </style>
 </head>
 <body>
@@ -139,6 +151,14 @@ footer{margin-top:34px; color:var(--ink-3); font-size:11px; text-align:center; f
       <button id="hireBtn">🌅 今日のルーキーを入社させる</button>
     </div>
   </header>
+
+  <div class="trybar">
+    <span class="trylabel">👋 審査員の方はワンクリックでお試しください →</span>
+    <button class="chip-btn detect" data-repo="https://github.com/1729kent/dayone-e2e-target">🧪 腐敗を検知させる</button>
+    <button class="chip-btn ok" data-repo="https://github.com/chalk/chalk">✅ 実OSS(chalk)で誤検知ゼロを確認</button>
+    <button class="chip-btn ok" data-repo="https://github.com/fastapi/fastapi">✅ FastAPIで確認</button>
+    <span class="trynote">結果は約30〜90秒で右の業務日誌にライブ表示されます</span>
+  </div>
 
   <main>
     <section class="panel">
@@ -292,17 +312,20 @@ function renderReport(rep){
       <td>${esc(f.explanation)}</td><td>${f.found_fix?"✅":"—"}</td></tr>`).join("")}</table>`;
 }
 
-$("#hireBtn").addEventListener("click",async()=>{
-  const b=$("#hireBtn");b.disabled=true;
+async function hire(repo, btns){
+  btns.forEach(b=>b.disabled=true);
   try{
-    const repo=$("#repoInput").value.trim();
     const r=await fetch("/runs",{method:"POST",headers:{"content-type":"application/json"},
       body:JSON.stringify(repo?{repo_url:repo}:{})});
     if(r.status===429){toast("☕ クールダウン中です（5分に1回まで）");return}
     if(r.status===400||r.status===403){toast("⚠️ "+((await r.json()).detail||"このリポジトリは実行できません"));return}
     const {run_id}=await r.json();toast("🌅 ルーキーが出社しました");sel=run_id;
     await loadRuns();pick(run_id);
-  }finally{b.disabled=false}
+  }finally{btns.forEach(b=>b.disabled=false)}
+}
+$("#hireBtn").addEventListener("click",()=>hire($("#repoInput").value.trim(), [$("#hireBtn")]));
+document.querySelectorAll(".chip-btn").forEach(btn=>{
+  btn.addEventListener("click",()=>hire(btn.dataset.repo, document.querySelectorAll(".chip-btn, #hireBtn")));
 });
 if(window.__INITIAL_RUNS__){runs=window.__INITIAL_RUNS__;renderRuns()}
 loadRuns();setInterval(()=>{const r=runs.find(x=>x.id===sel);
