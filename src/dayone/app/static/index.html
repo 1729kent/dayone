@@ -133,7 +133,7 @@ footer{margin-top:34px; color:var(--ink-3); font-size:11px; text-align:center; f
     <div class="tagline">毎日が、入社初日。<small>AIルーキーが毎朝リポジトリに入社し、腐ったドキュメントを検知して直します</small></div>
     <div class="spacer"></div>
     <div style="display:flex;gap:10px;align-items:center">
-      <input id="repoInput" placeholder="公開リポジトリURL（空欄ならデモ）"
+      <input id="repoInput" placeholder="リポジトリURL（許可リスト制・空欄ならデモ）" title="安全のため許可リスト制です。chalk/chalk・fastapi/fastapi・pallets/click・encode/httpx などの著名OSSを試せます"
         style="background:var(--surface);border:1px solid var(--line);color:var(--ink);border-radius:9px;
                padding:12px 14px;font-size:12.5px;width:250px;font-family:var(--mono)">
       <button id="hireBtn">🌅 今日のルーキーを入社させる</button>
@@ -299,7 +299,7 @@ $("#hireBtn").addEventListener("click",async()=>{
     const r=await fetch("/runs",{method:"POST",headers:{"content-type":"application/json"},
       body:JSON.stringify(repo?{repo_url:repo}:{})});
     if(r.status===429){toast("☕ クールダウン中です（5分に1回まで）");return}
-    if(r.status===400){toast("⚠️ https://github.com/owner/repo 形式の公開リポジトリを指定してください");return}
+    if(r.status===400||r.status===403){toast("⚠️ "+((await r.json()).detail||"このリポジトリは実行できません"));return}
     const {run_id}=await r.json();toast("🌅 ルーキーが出社しました");sel=run_id;
     await loadRuns();pick(run_id);
   }finally{b.disabled=false}

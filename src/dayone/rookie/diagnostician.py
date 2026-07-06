@@ -18,7 +18,7 @@ class RepoTools:
 
     def _resolve(self, path: str) -> Path | None:
         p = (self.repo_dir / path).resolve()
-        if not str(p).startswith(str(self.repo_dir)):
+        if not p.is_relative_to(self.repo_dir):  # startswith だと /x/repo2 を /x/repo 内と誤判定する
             return None
         return p
 

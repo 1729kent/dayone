@@ -69,7 +69,7 @@ class Reporter:
                            f"（{o.fix.explanation}）" for o in fixable]
             body_lines += ["", "🤖 このPRは AI 新人エージェント DayOne が自動生成しました。マージ判断は人間が行ってください。"]
             pr_url = self.github.create_doc_pr(
-                repo_full=repo_full, base="main", file_path=plan.doc_path,
+                repo_full=repo_full, base=None, file_path=plan.doc_path,
                 new_content=new_content, title="docs: DayOneが検知したセットアップ手順の腐敗を修正",
                 body="\n".join(body_lines), branch=f"dayone/fix-{int(finished_at)}")
             self.emit("pr", {"url": pr_url})

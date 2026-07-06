@@ -21,6 +21,19 @@ def test_run_timeout(tmp_path: Path):
     assert r.timed_out and r.exit_code != 0
 
 
+def test_timeout_kills_process_group(tmp_path: Path):
+    """タイムアウト時、シェルだけでなくバックグラウンドの孫プロセスも殺されること"""
+    import subprocess as sp
+    import uuid
+
+    marker = f"dayone-orphan-{uuid.uuid4().hex[:8]}"
+    cmd = f'python3 -c "import time; time.sleep(60)  # {marker}" & sleep 60'
+    r = Sandbox(cwd=tmp_path).run(cmd, timeout_s=1)
+    assert r.timed_out
+    leftover = sp.run(["pgrep", "-f", marker], capture_output=True, text=True)
+    assert leftover.returncode != 0, f"orphan process survived: {leftover.stdout}"
+
+
 def test_child_env_is_scrubbed(tmp_path: Path, monkeypatch):
     monkeypatch.setenv("GITHUB_TOKEN", "secret")
     r = Sandbox(cwd=tmp_path).run("printenv GITHUB_TOKEN || echo EMPTY")

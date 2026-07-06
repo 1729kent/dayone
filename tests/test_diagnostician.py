@@ -14,6 +14,18 @@ def test_repotools_confined(tmp_path):
     assert "outside" in t.read_file("../../etc/passwd")
 
 
+def test_repotools_sibling_prefix_blocked(tmp_path):
+    """/x/repo に対して /x/repo2 のような prefix が一致する sibling を repo 内と誤判定しないこと"""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    sibling = tmp_path / "repo2"
+    sibling.mkdir()
+    (sibling / "secret.txt").write_text("leak")
+    t = RepoTools(repo, Sandbox(cwd=repo))
+    assert "outside" in t.read_file("../repo2/secret.txt")
+    assert "leak" not in t.read_file("../repo2/secret.txt")
+
+
 def test_probe_budget(tmp_path):
     t = RepoTools(tmp_path, Sandbox(cwd=tmp_path), probe_budget=1)
     assert "exit_code=0" in t.run_probe("true")

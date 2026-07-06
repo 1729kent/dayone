@@ -7,7 +7,7 @@ import uuid
 from pathlib import Path
 
 import uvicorn
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
 
 from dayone.common.config import Settings
@@ -20,6 +20,21 @@ COOLDOWN_SECONDS = 300
 STATIC_DIR = Path(__file__).parent / "static"
 REPO_URL_RE = re.compile(r"^https://github\.com/[\w.-]+/[\w.-]+/?$")
 STUCK_SECONDS = 1800  # queued/running のままこれを超えた run はウォッチドッグが failed に落とす
+
+# 公開デモで実行できるリポジトリの許可リスト。
+# サンドボックスは環境変数スクラブ等で封じ込めているが、任意リポジトリの README コマンド実行は
+# メタデータサーバー経由のトークン取得・課金DoS 等の攻撃面が残るため、信頼境界を許可リストで引く。
+ALLOWED_REPOS = {
+    "1729kent/dayone", "1729kent/dayone-demo-node", "1729kent/dayone-demo-py",
+    "1729kent/dayone-e2e-target",
+    # 軽量・著名な OSS のキュレーション（審査員のお試し用）
+    "chalk/chalk", "fastapi/fastapi", "pallets/click", "encode/httpx",
+    "tj/commander.js", "sindresorhus/slugify", "expressjs/express",
+}
+
+
+def repo_full(url: str) -> str:
+    return "/".join(url.rstrip("/").removesuffix(".git").split("/")[-2:]).lower()
 
 
 def create_app(store: Store | None = None, launcher=None, settings: Settings | None = None) -> FastAPI:
@@ -90,15 +105,37 @@ def create_app(store: Store | None = None, launcher=None, settings: Settings | N
         repo_url = ((body or {}).get("repo_url") or DEFAULT_REPO).strip()
         if not REPO_URL_RE.match(repo_url):
             raise HTTPException(400, detail="公開GitHubリポジトリのURL（https://github.com/owner/repo）を指定してください")
+        allowed = ALLOWED_REPOS | set(filter(None, s.extra_allowed_repos.lower().split(",")))
+        if repo_full(repo_url) not in allowed:
+            raise HTTPException(
+                403,
+                detail="公開デモでは安全のため許可リストのリポジトリのみ実行できます"
+                       "（例: chalk/chalk, fastapi/fastapi, pallets/click, encode/httpx）。"
+                       "理由はREADMEのセキュリティ設計を参照してください")
         if not store.try_acquire_cooldown(COOLDOWN_SECONDS, now=time.time()):
             raise HTTPException(429, detail="cooldown: 5分に1回まで実行できます")
         return {"run_id": start_run(repo_url, "manual")}
 
-    @app.post("/internal/scheduled")
-    def scheduled(token: str = ""):
-        if not s.sched_token or token != s.sched_token:
+    def check_bearer(authorization: str) -> None:
+        if not s.sched_token or authorization != f"Bearer {s.sched_token}":
             raise HTTPException(403)
+
+    @app.post("/internal/scheduled")
+    def scheduled(authorization: str = Header("")):
+        check_bearer(authorization)
         return {"run_ids": [start_run(u, "scheduled") for u in DEMO_REPOS]}
+
+    @app.post("/internal/e2e")
+    async def e2e_trigger(request: Request, authorization: str = Header("")):
+        """CI 用の回帰トリガー。公開クールダウンと競合しない専用経路（Bearer 認証）"""
+        check_bearer(authorization)
+        body = {}
+        try:
+            body = await request.json()
+        except Exception:
+            pass
+        repo_url = (body or {}).get("repo_url") or DEFAULT_REPO
+        return {"run_id": start_run(repo_url, "manual")}
 
     @app.get("/api/runs/{run_id}/stream")
     async def stream(run_id: str):

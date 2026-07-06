@@ -1,4 +1,5 @@
 import os
+import signal
 import subprocess
 import time
 from pathlib import Path
@@ -28,15 +29,26 @@ class Sandbox:
 
     def run(self, command: str, timeout_s: int | None = None) -> ExecResult:
         t0 = time.monotonic()
+        limit = timeout_s or self.timeout_s
+        # start_new_session でプロセスグループを分離し、タイムアウト時は killpg で
+        # 孫・バックグラウンドプロセスまで確実に殺す（shell のみ kill だと残存する）
+        proc = subprocess.Popen(command, shell=True, cwd=self.cwd, env=scrub_env(dict(os.environ)),
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                                start_new_session=True)
         try:
-            p = subprocess.run(command, shell=True, cwd=self.cwd, env=scrub_env(dict(os.environ)),
-                               capture_output=True, text=True, timeout=timeout_s or self.timeout_s)
-            return ExecResult(exit_code=p.returncode, stdout=p.stdout[-20000:], stderr=p.stderr[-20000:],
+            stdout, stderr = proc.communicate(timeout=limit)
+            return ExecResult(exit_code=proc.returncode, stdout=stdout[-20000:], stderr=stderr[-20000:],
                               duration_s=time.monotonic() - t0)
-        except subprocess.TimeoutExpired as e:
-            out = e.stdout if isinstance(e.stdout, str) else ""
-            limit = timeout_s or self.timeout_s
-            return ExecResult(exit_code=124, stdout=(out or "")[-20000:],
+        except subprocess.TimeoutExpired:
+            try:
+                os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+            except (ProcessLookupError, PermissionError):
+                pass
+            try:
+                stdout, _ = proc.communicate(timeout=5)
+            except subprocess.TimeoutExpired:
+                stdout = ""
+            return ExecResult(exit_code=124, stdout=(stdout or "")[-20000:],
                               stderr=f"timed out after {limit}s (ネットワーク断とは限らない。"
                                      "大きな依存のインストール等で単に時間切れの可能性が高い)",
                               duration_s=time.monotonic() - t0, timed_out=True)

@@ -24,8 +24,15 @@ class GitHubClient:
                 return pr["html_url"]
         return None
 
-    def create_doc_pr(self, repo_full: str, base: str, file_path: str,
+    def default_branch(self, repo_full: str) -> str:
+        r = self.http.get(f"{API}/repos/{repo_full}")
+        r.raise_for_status()
+        return r.json().get("default_branch") or "main"
+
+    def create_doc_pr(self, repo_full: str, base: str | None, file_path: str,
                       new_content: str, title: str, body: str, branch: str) -> str:
+        if base is None:  # main 固定だと master 等の default branch の repo で PR 作成が失敗する
+            base = self.default_branch(repo_full)
         r = self.http.get(f"{API}/repos/{repo_full}/git/ref/heads/{base}")
         r.raise_for_status()
         base_sha = r.json()["object"]["sha"]

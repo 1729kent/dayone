@@ -42,6 +42,10 @@ class Settings:
         return self._get("SCHED_TOKEN")
 
     @property
+    def extra_allowed_repos(self) -> str:
+        return self._get("EXTRA_ALLOWED_REPOS")
+
+    @property
     def create_pr(self) -> bool:
         return self._get("CREATE_PR", "1") not in ("0", "false", "")
 

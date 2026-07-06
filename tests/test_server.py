@@ -52,11 +52,30 @@ def test_get_run_and_list():
     assert c.get("/api/runs/nope").status_code == 404
 
 
-def test_scheduled_requires_token():
+def test_scheduled_requires_bearer_header():
     c, _, launcher = mk()
-    assert c.post("/internal/scheduled?token=bad").status_code == 403
-    assert c.post("/internal/scheduled?token=tok").status_code == 200
+    assert c.post("/internal/scheduled").status_code == 403
+    assert c.post("/internal/scheduled", headers={"Authorization": "Bearer bad"}).status_code == 403
+    assert c.post("/internal/scheduled?token=tok").status_code == 403  # query は受け付けない
+    assert c.post("/internal/scheduled", headers={"Authorization": "Bearer tok"}).status_code == 200
     assert len(launcher.launched) == 2
+
+
+def test_repo_allowlist():
+    c, *_ = mk()
+    r = c.post("/runs", json={"repo_url": "https://github.com/evil/evil-repo"})
+    assert r.status_code == 403
+    assert c.post("/runs", json={"repo_url": "https://github.com/chalk/chalk"}).status_code == 200
+
+
+def test_e2e_endpoint_bypasses_cooldown():
+    c, _, launcher = mk()
+    assert c.post("/runs", json={}).status_code == 200  # クールダウン消費
+    assert c.post("/internal/e2e", json={}).status_code == 403  # 認証なしは拒否
+    r = c.post("/internal/e2e", json={"repo_url": "https://github.com/1729kent/dayone-e2e-target"},
+               headers={"Authorization": "Bearer tok"})
+    assert r.status_code == 200  # クールダウン中でも CI 経路は通る
+    assert launcher.launched[-1][1].endswith("e2e-target")
 
 
 def test_index_serves_html():

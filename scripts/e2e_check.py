@@ -15,12 +15,18 @@ TIMEOUT_S = 12 * 60
 
 
 def main() -> None:
-    for attempt in range(4):
-        r = httpx.post(f"{APP_URL}/runs", json={"repo_url": TARGET_REPO}, timeout=30)
-        if r.status_code != 429:
-            break
-        print(f"cooldown active; waiting 120s (attempt {attempt + 1}/4)")
-        time.sleep(120)
+    e2e_token = os.environ.get("E2E_TOKEN")
+    if e2e_token:
+        # CI 専用経路（公開クールダウンと競合しない・Bearer 認証）
+        r = httpx.post(f"{APP_URL}/internal/e2e", json={"repo_url": TARGET_REPO},
+                       headers={"Authorization": f"Bearer {e2e_token}"}, timeout=30)
+    else:
+        for attempt in range(4):
+            r = httpx.post(f"{APP_URL}/runs", json={"repo_url": TARGET_REPO}, timeout=30)
+            if r.status_code != 429:
+                break
+            print(f"cooldown active; waiting 120s (attempt {attempt + 1}/4)")
+            time.sleep(120)
     r.raise_for_status()
     run_id = r.json()["run_id"]
     print(f"run started: {run_id}")

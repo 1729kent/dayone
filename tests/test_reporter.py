@@ -20,7 +20,8 @@ def test_create_doc_pr_calls_github_api():
     class FakeHTTP:
         def get(self, url, **kw):
             calls.append(("GET", url))
-            return FakeResp({"object": {"sha": "abc"}, "sha": "filesha", "content": ""})
+            return FakeResp({"object": {"sha": "abc"}, "sha": "filesha", "content": "",
+                             "default_branch": "trunk"})
 
         def post(self, url, **kw):
             calls.append(("POST", url))
@@ -31,9 +32,12 @@ def test_create_doc_pr_calls_github_api():
             return FakeResp({})
 
     gh = GitHubClient(token="t", http=FakeHTTP())
-    url = gh.create_doc_pr("x/y", "main", "README.md", "new", "title", "body", "dayone/fix-1")
+    url = gh.create_doc_pr("x/y", None, "README.md", "new", "title", "body", "dayone/fix-1")
     assert url.endswith("/pull/1")
     assert ("POST", "https://api.github.com/repos/x/y/pulls") in calls
+    # base=None のとき default branch をリポジトリメタデータから解決していること
+    assert ("GET", "https://api.github.com/repos/x/y") in calls
+    assert ("GET", "https://api.github.com/repos/x/y/git/ref/heads/trunk") in calls
 
 
 def make_fixed_outcomes(plan):
