@@ -1,7 +1,7 @@
 # ProtoPedia 登録用文面（コピペ用）
 
 ✅ **登録完了済み（2026-07-03）**: https://protopedia.net/prototype/8711
-✅ 動画: https://www.youtube.com/watch?v=jgMJn3lnd2s
+✅ 動画: https://www.youtube.com/watch?v=N6M4Za9iI1s
 残り: Google Form での最終応募（7/10 23:59 まで、再提出可）。
 
 ---
