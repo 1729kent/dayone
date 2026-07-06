@@ -4,3 +4,8 @@ check_*.png
 draft*.mp4
 build/
 cards/*.png
+ncheck_*.png
+fcheck_*.png
+final_check_*.png
+raw-final/
+final-demo.mp4
