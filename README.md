@@ -127,15 +127,27 @@ graph LR
 - **まわす**: push → テスト → イメージビルド → Cloud Run/Jobs 自動デプロイ（GitHub Actions + WIF）。さらに**毎朝のE2E回帰がエージェント自身の品質を継続検証**（腐敗を検知できなくなったらCIが赤くなる）— エージェントを「作って終わり」にしないための仕組み
 - **とどける**: 誰でも触れる公開URL。トリガーはクールダウン付きで公開デモとして安全に運用
 
-## 実在OSSでの実行例（デモ用リポジトリ以外でも動く）
+## 実在OSSでの検証（誤検知ゼロ）
 
-| リポジトリ | 結果 | TTFS | 判定 |
+自作のデモ用リポジトリだけでなく、**実在の人気OSS 7 プロジェクト**でクイックスタートを実行し、すべて**腐敗スコア 0＝誤検知ゼロ**を確認しました（健全なドキュメントを正しく健全と判定）。
+
+| リポジトリ | 言語 | 腐敗スコア | 判定 |
 |---|---|---|---|
-| [chalk/chalk](https://github.com/chalk/chalk)（週2億DL） | 腐敗スコア **0** | 84秒 | 健全なドキュメントを健全と判定（誤検知なし） |
-| [fastapi/fastapi](https://github.com/fastapi/fastapi) | 腐敗スコア **0** | 17秒 | 同上 |
-| [dayone-demo-py](https://github.com/1729kent/dayone-demo-py)（腐敗注入） | 腐敗スコア **15** | — | 前提記載漏れを検知し[修正PR](https://github.com/1729kent/dayone-demo-py/pull/1)を自動作成 |
+| [chalk/chalk](https://github.com/chalk/chalk)（週2億DL） | Node | **0** | 誤検知なし |
+| [fastapi/fastapi](https://github.com/fastapi/fastapi) | Python | **0** | 誤検知なし |
+| [psf/requests](https://github.com/psf/requests) | Python | **0** | 誤検知なし |
+| [pallets/click](https://github.com/pallets/click) | Python | **0** | 誤検知なし |
+| [python-attrs/attrs](https://github.com/python-attrs/attrs) | Python | **0** | 誤検知なし |
+| [tj/commander.js](https://github.com/tj/commander.js) | Node | **0** | 誤検知なし |
+| [sindresorhus/slugify](https://github.com/sindresorhus/slugify) | Node | **0** | 誤検知なし |
 
-実OSSテストは実装の穴も3つ暴いた（`readme.md`小文字対応・重い依存インストールのタイムアウト・診断LLMの誤帰属）。いずれも修正済みで、この「実環境で殴られて直す」ループ自体がDayOneの開発プロセスだった。
+対して腐敗を注入したフィクスチャ（[demo-node](https://github.com/1729kent/dayone-demo-node) / [demo-py](https://github.com/1729kent/dayone-demo-py) / e2e-target）では**100%検知**し修正PRを自動作成。「腐っていないものは腐っていないと言い、腐っているものは直す」が実データで示せています。
+
+> **実OSSテストが実装の穴を暴き、その場で直した**のもこの作品の一部です: `readme.md`小文字対応・重い依存のタイムアウト・診断LLMの誤帰属・**サンドボックスvenvにpipが無く`pip install`が失敗する問題**——いずれも実在OSSで走らせて発見し修正しました。「実環境で殴られて直す」ループ自体がDayOneの開発プロセスです。
+
+### 開発者体験（DevEx）を"測って直す"新しい指標
+
+開発生産性の可視化（Four Keys・サイクルタイム等）は広がりつつありますが、**オンボーディングの健全性は誰も測っていません**。DayOne の腐敗スコア／Time to First Success は、既存の指標が捉えないオンボーディング体験を数値化し、**可視化 → AI分析 → 改善（PR）** のループで自動的に返します。ドキュメントを DevEx の計測対象に引き上げる試みです。
 
 ## 動かし方
 

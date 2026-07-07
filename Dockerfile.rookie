@@ -7,5 +7,8 @@ COPY pyproject.toml uv.lock README.md ./
 RUN uv sync --frozen --no-install-project --no-dev
 COPY src ./src
 RUN uv sync --frozen --no-dev
+# サンドボックスで実行する repo が README 記載の `pip install` を辿れるよう venv に pip を用意する
+# （実OSS検証で requests の pip 手順が venv に pip 無しで失敗する誤検知を発見 → 修正）
+RUN /srv/.venv/bin/python -m ensurepip --upgrade
 ENV PATH="/srv/.venv/bin:$PATH" PYTHONUNBUFFERED=1
 CMD ["dayone-rookie"]
