@@ -1,9 +1,20 @@
+import re
 from pathlib import Path
 from typing import Callable, Protocol
 
 from dayone.common.models import Attempt, Fix, Step, StepOutcome, StepPlan
 
 EmitFn = Callable[[str, dict], None]
+
+# 業務日誌に出す出力から、万一混入したトークン様の文字列を伏字化する（多層防御）。
+# サンドボックスは環境変数をスクラブ済みなので本来秘密は現れないが、repo自身が印字した秘密にも備える。
+_SECRET_RE = re.compile(
+    r"(gh[pousr]_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{12,}|[A-Za-z0-9_\-]{32,}\.[A-Za-z0-9_\-]{6,}\.[A-Za-z0-9_\-]{20,}|[A-Fa-f0-9]{40,})"
+)
+
+
+def redact(text: str, limit: int = 400) -> str:
+    return _SECRET_RE.sub("[REDACTED]", text or "")[-limit:]
 
 
 class Diagnostician(Protocol):
@@ -50,6 +61,9 @@ class Executor:
                 continue
             self.emit("exec", {"step_id": step.id, "command": step.command, "intent": step.intent})
             result = execute(step.command)
+            out = (result.stdout + ("\n" + result.stderr if result.stderr else "")).strip()
+            if out:
+                self.emit("stdout", {"step_id": step.id, "text": redact(out)})
             attempts = [Attempt(command=step.command, result=result)]
             suspicious = result.exit_code == 0 and self.judge.suspicious(step, result)
             if result.exit_code == 0 and not suspicious:

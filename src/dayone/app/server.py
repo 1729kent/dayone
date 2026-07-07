@@ -26,7 +26,7 @@ STUCK_SECONDS = 1800  # queued/running のままこれを超えた run はウォ
 # メタデータサーバー経由のトークン取得・課金DoS 等の攻撃面が残るため、信頼境界を許可リストで引く。
 ALLOWED_REPOS = {
     "1729kent/dayone", "1729kent/dayone-demo-node", "1729kent/dayone-demo-py",
-    "1729kent/dayone-e2e-target",
+    "1729kent/dayone-e2e-target", "1729kent/dayone-safety-demo",
     # 軽量・著名な OSS のキュレーション（審査員のお試し用）
     "chalk/chalk", "fastapi/fastapi", "pallets/click", "encode/httpx",
     "tj/commander.js", "sindresorhus/slugify", "expressjs/express",

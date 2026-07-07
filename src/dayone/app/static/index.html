@@ -133,6 +133,7 @@ footer{margin-top:34px; color:var(--ink-3); font-size:11px; text-align:center; f
 .chip-btn:hover{transform:translateY(-1px); box-shadow:0 4px 14px rgba(0,0,0,.35)}
 .chip-btn.detect{border-color:rgba(245,185,66,.5); color:var(--sun)}
 .chip-btn.ok{border-color:rgba(25,158,112,.4); color:var(--ok)}
+.chip-btn.safe{border-color:rgba(57,135,229,.5); color:var(--info)}
 .chip-btn:disabled{opacity:.5; cursor:wait}
 </style>
 </head>
@@ -157,6 +158,7 @@ footer{margin-top:34px; color:var(--ink-3); font-size:11px; text-align:center; f
     <button class="chip-btn detect" data-repo="https://github.com/1729kent/dayone-e2e-target">🧪 腐敗を検知させる</button>
     <button class="chip-btn ok" data-repo="https://github.com/chalk/chalk">✅ 実OSS(chalk)で誤検知ゼロを確認</button>
     <button class="chip-btn ok" data-repo="https://github.com/fastapi/fastapi">✅ FastAPIで確認</button>
+    <button class="chip-btn safe" data-repo="https://github.com/1729kent/dayone-safety-demo">🛡️ 秘密情報が漏れないことを確認</button>
     <span class="trynote">結果は約30〜90秒で右の業務日誌にライブ表示されます</span>
   </div>
 
@@ -291,6 +293,8 @@ function addEvent(e){
     <ol class="steps">${(p.steps||[]).map(s=>`<li><span class="n">${String(s.id).padStart(2,"0")}</span>${esc(s.intent)} <code>${esc(s.command)}</code></li>`).join("")}</ol></div></div>`;
   else if(e.type==="exec")html=`<div class="ev"><div class="t">${fmtT(e.ts)}</div><div class="ico">▶</div>
     <div class="body"><span class="lbl">STEP ${p.step_id} ${esc(p.intent||"")}</span><br><code>${esc(p.command)}</code></div></div>`;
+  else if(e.type==="stdout")html=`<div class="ev"><div class="t"></div><div class="ico">›_</div>
+    <div class="body"><div class="err" style="color:var(--ink-2)">${esc(p.text||"")}</div></div></div>`;
   else if(e.type==="diagnose")html=`<div class="ev"><div class="t">${fmtT(e.ts)}</div><div class="ico">🔍</div>
     <div class="body"><span class="lbl">うまくいかない…原因を調査中</span><div class="err">${esc((p.stderr||"").slice(-300))}</div></div></div>`;
   else if(e.type==="fix")html=`<div class="ev"><div class="t">${fmtT(e.ts)}</div><div class="ico">🔧</div>

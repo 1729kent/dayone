@@ -85,6 +85,24 @@ def test_action_budget():
     assert all(o.status == "skipped" for o in outcomes[5:])
 
 
+def test_stdout_event_emitted_and_redacted():
+    from dayone.rookie.executor import Executor
+    leaky = ExecResult(exit_code=0, stdout="token=ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
+                       stderr="", duration_s=0.1)
+    sb = ScriptedSandbox({"a": [leaky]})
+    events = []
+    ex = Executor(sb, OutputJudge(), NoFix(), emit=lambda t, pl: events.append((t, pl)))
+    ex.run(plan("a"), Path("."))
+    stdout_events = [pl for t, pl in events if t == "stdout"]
+    assert stdout_events and "[REDACTED]" in stdout_events[0]["text"]
+    assert "ghp_" not in stdout_events[0]["text"]
+
+
+def test_redact_leaves_clean_text():
+    from dayone.rookie.executor import redact
+    assert redact("all good, deps installed") == "all good, deps installed"
+
+
 def test_judge_suspicious_triggers_diagnose():
     sus = ExecResult(exit_code=0, stdout="", stderr="Error: ENOENT missing file", duration_s=0.1)
     sb = ScriptedSandbox({"a": [sus], "a2": [ok()]})
