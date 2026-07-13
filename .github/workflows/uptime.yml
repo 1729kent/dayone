@@ -1,0 +1,29 @@
+name: uptime
+# 審査期間中（〜7/24）のデプロイ死活監視。20分ごとに /health と /api/runs を叩き、
+# 落ちていればこのワークフローが失敗し、GitHub がリポジトリオーナーに自動でメール通知する。
+# セッションにも gcloud 認証にも依存せず、GitHub 上で独立して回る。
+on:
+  schedule:
+    - cron: "3,23,43 * * * *"   # 20分ごと（:00の集中を避けてオフセット）
+  workflow_dispatch: {}
+concurrency:
+  group: uptime
+  cancel-in-progress: true
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: health endpoint must return 200
+        run: |
+          url="${{ vars.APP_URL }}"
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$url/health")
+          echo "GET $url/health -> $code"
+          [ "$code" = "200" ] || { echo "::error::DayOne app /health is DOWN (HTTP $code)"; exit 1; }
+      - name: runs API must serve valid JSON
+        run: |
+          url="${{ vars.APP_URL }}"
+          body=$(curl -s --max-time 20 "$url/api/runs")
+          echo "$body" | python3 -c "import json,sys; d=json.load(sys.stdin); assert isinstance(d, list)" \
+            || { echo "::error::DayOne /api/runs did not return a JSON array"; exit 1; }
+          echo "runs API OK ($(echo "$body" | python3 -c 'import json,sys;print(len(json.load(sys.stdin)))') runs)"
